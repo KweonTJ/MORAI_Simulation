@@ -3,8 +3,7 @@
 
 import rospy
 import rospkg
-from math import cos, sin, sqrt, pow, atan2, pi
-
+from math import cos, sin, sqrt, pow, atan2
 from geometry_msgs.msg import Point, PoseStamped
 from nav_msgs.msg import Odometry, Path
 from morai_msgs.msg import CtrlCmd
@@ -17,7 +16,7 @@ class pure_pursuit:
     def __init__(self):
         rospy.init_node('pure_pursuit', anonymous=True)
         
-        # 📍 차량 상태 구독 (/odom 으로 수정)
+        # 📍 차량 상태 구독 (/odom 토픽)
         rospy.Subscriber("/odom", Odometry, self.odom_callback)
         self.ctrl_cmd_pub = rospy.Publisher('ctrl_cmd_0', CtrlCmd, queue_size=1)
 
@@ -34,7 +33,6 @@ class pure_pursuit:
         self.forward_point = Point()
         self.current_postion = Point()
         self.current_velocity_kph = 0.0
-        self.vehicle_yaw = 0.0
 
         self.vehicle_length = 1.0
         self.lfd = 8.0
@@ -72,12 +70,11 @@ class pure_pursuit:
         while not rospy.is_shutdown():
             if self.is_path and self.is_odom:
                 
-                # 🚥 신호 대기 로직 (YOLO 신호 받기 전까지 대기)
+                # 🚥 신호 대기 로직
                 if not self.is_started:
                     self.ctrl_cmd_msg.steering = 0.0
                     self.ctrl_cmd_msg.accel = 0.0
                     self.ctrl_cmd_msg.brake = 1.0
-                    print("[TRAFFIC LIGHT] 🔴 YOLO '직좌 신호' 대기 중...")
                     self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
                     rate.sleep()
                     continue
@@ -89,7 +86,6 @@ class pure_pursuit:
                     self.ctrl_cmd_msg.steering = 0.0
                     self.ctrl_cmd_msg.accel = 0.0
                     self.ctrl_cmd_msg.brake = 1.0
-                    print(f"\n Goal (Index: {self.current_waypoint}/{total_waypoints}) \n")
                     self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
                     rate.sleep()
                     continue
@@ -116,24 +112,20 @@ class pure_pursuit:
                     self.ctrl_cmd_msg.accel = 0.0
                     self.ctrl_cmd_msg.brake = 1.0
                 
-                print(f"[RUNNING] Progress: {self.current_waypoint}/{total_waypoints} | Target: {self.target_velocity:.1f}km/h | Current: {self.current_velocity_kph:.1f}km/h | Steer: {self.ctrl_cmd_msg.steering:.3f}")
                 self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-                
-            else:
-                print(f"[WAITING] 텍스트경로 로드: {self.is_path} | 시뮬레이터 연결(Odom): {self.is_odom}")
                 
             rate.sleep()
 
-    # 🚥 YOLO 콜백
+    # 🚥 YOLO 콜백 함수
     def traffic_light_callback(self, msg):
         if self.is_started:
             return
-        TARGET_YOLO_CLASS = 3
+        TARGET_YOLO_CLASS = 3  
         if msg.data == TARGET_YOLO_CLASS:
             rospy.loginfo("🟢 [YOLO] '직좌 신호' 검출! 주행 시작")
             self.is_started = True
 
-    # 📍 Odom 콜백
+    # 📍 Odom 콜백 함수
     def odom_callback(self, msg):
         self.is_odom = True
         self.current_postion.x = msg.pose.pose.position.x
@@ -168,7 +160,6 @@ class pure_pursuit:
         self.prev_waypoint = current_waypoint
         return current_waypoint
 
-    # 🔄 Pure Pursuit 계산 (장애물 회피 로직 완전 삭제)
     def calc_pure_pursuit(self):
         current_vel_mps = self.current_velocity_kph / 3.6
         self.lfd = current_vel_mps * self.lfd_gain
@@ -185,8 +176,8 @@ class pure_pursuit:
 
         trans_matrix = np.array([
                 [cos(self.vehicle_yaw), -sin(self.vehicle_yaw), translation[0]],
-                [sin(self.vehicle_yaw),  cos(self.vehicle_yaw), translation[1]],
-                [0                    ,  0                    , 1             ]])
+                [sin(self.vehicle_yaw), cos(self.vehicle_yaw), translation[1]],
+                [0                    , 0                    , 1             ]])
 
         det_trans_matrix = np.linalg.inv(trans_matrix)
 
@@ -207,8 +198,6 @@ class pure_pursuit:
         if self.is_look_forward_point:
             theta = atan2(local_path_point[1], local_path_point[0])
             steering = atan2((2 * self.vehicle_length * sin(theta)), self.lfd)
-            # 첫 번째 코드 조향 제한(-28도 ~ 28도 수준인 0.489 rad) 적용
-            steering = max(min(steering, 0.489), -0.489)
         else:
             steering = 0.0
 
