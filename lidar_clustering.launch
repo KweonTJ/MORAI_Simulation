@@ -1,0 +1,31 @@
+<launch>
+    <node pkg="lidar_pkg" type="lidar_clustering.py" name="lidar_clustering" output="screen">
+        <param name="ransac_threshold" value="0.04" /> #0.02
+        <param name="min_cluster_size" value="2" />
+        <param name="min_samples" value="2" />
+        <param name="cluster_selection_epsilon" value="0.4" />
+        <!-- ROI 범위 -->
+        <param name="roi_x_min" value="0.03" />
+        <param name="roi_x_max" value="15.00" />
+        <param name="roi_y_min" value="-3.5" /> 
+        <param name="roi_y_max" value="3.5" />  
+        <param name="roi_z_min" value="-0.6" />
+        <param name="roi_z_max" value="1.5" /> #2
+        <!-- 장애물 높이 필터 -->
+        <param name="bbox_z_min" value="0.2" />
+        <param name="bbox_z_max" value="1.5" /> #2
+        <param name="bbox_x_max" value="6.0" />
+        <param name="bbox_y_max" value="4.0" />
+        <!-- 다중 프레임 트래킹 (20km/h 기준) -->
+        <param name="track_match_dist" value="0.6" />
+        <param name="track_confirm_count" value="2" />
+        <param name="track_max_miss" value="4" />
+        <!-- 연산 속도 개선 -->
+        <param name="voxel_size" value="0.05" />
+        <!-- 디버깅용 터미널/RViz -->
+        <param name="enable_terminal_log" value="true" />
+        <param name="enable_rviz_markers" value="true" />
+        <!-- 입력 LiDAR Topic -->
+        <param name="lidar_topic" value="/velodyne_points" />
+    </node>
+</launch>
